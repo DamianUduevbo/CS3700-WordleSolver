@@ -1,3 +1,6 @@
+# Description
 This script uses command-line arguments to specify the port to use, whether to use TLS encryption, the hostname of the server, and a northeastern_username, in order to connect to a server to solve wordles. It also reads in a list of words from a file called "project1-words.txt" and uses this list to randomly select a word to send to the server as a guess in the JSON message. The script also processes the received JSON data to update the list of words based on the responses from the server.
 
+
+# Guessing Algorithm
 A random word is picked from the text file and sent to the server as a guess. The received JSON data that contains the marks for some given guess, and iterates over each char/number in a guessed word/a guessed word's marks. If the letter is in the correct position, then the client iterates over the list of words and checks if a word in the list has the right letter in the same exact position as the one in the received guess data. If it's false, that word gets removed from the words list, thus narrowing down the possible choices. This code is essentially using the received data to update the list of possible words by removing words that do not match the response.
