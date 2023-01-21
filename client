@@ -1,0 +1,110 @@
+import socket
+import json
+import ssl
+import random
+import argparse
+
+with open("project1-words.txt", "r") as my_file: words = my_file.read().split('\n')
+
+parser = argparse.ArgumentParser()
+parser.add_argument('-p', type=int)
+parser.add_argument('-s', action='store_true')
+parser.add_argument('hostname')
+parser.add_argument('northeastern_username') 
+args = parser.parse_args()
+
+client_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+port = 27993
+
+if args.s:
+    port = 27994
+    client_sock = ssl.wrap_socket(client_sock)
+
+if args.p:
+    if (args.p == 27994):
+        port = 27994
+        client_sock = ssl.wrap_socket(client_sock)
+    else:
+        port = args.p
+
+server_address = (args.hostname, port)
+client_sock.connect(server_address)
+
+# messageString = b'{"type": "hello", "northeastern_username": "%s"}' % args.northeastern_username
+messageJson = {"type": "hello", "northeastern_username": args.northeastern_username}
+jsonStringify = json.dumps(messageJson) + '\n'
+
+messageString = bytes(jsonStringify, encoding = 'utf-8')
+client_sock.sendall(messageString)
+
+data = client_sock.recv(8192).decode()
+loginData = json.loads(data)
+loginDataType = loginData['type']
+
+j = 0
+
+# ERR FIXED HERE: double quotes instead of single quotes and upvalue loginData['type']
+while loginDataType != "bye" and loginDataType != "error":
+    
+    if loginDataType == "start" or loginDataType == "retry":
+        guessWord = random.choice(words).strip('\n')
+
+        try:
+            words.remove(guessWord + '\n')
+        except:
+            words.remove(guessWord)
+    
+    # string templating doesnt work
+    # messageJson = '{"type": "guess", "id": "%s", "word": "%s"}' % (loginData['id'], guessWord)
+    messageJson = {"type": "guess", "id": loginData['id'], "word": guessWord}
+    jsonStringify = json.dumps(messageJson) + '\n'
+    messageString = bytes(jsonStringify, encoding = 'utf-8')
+    client_sock.sendall(messageString)
+
+    # list is better. prevent res from cutting off
+    data = []
+    dataStr = ''
+    dataJSON = None
+
+    # Building stringified json data
+    # data that we receive get appended to the list 'data'
+    # 'dataStr' converts 'data' array to a full string (produces stringified JsonData)
+    # if 'dataStr' contains newline then we convert it to real json
+    while True:
+        recvData = client_sock.recv(8192).decode()
+        data.append(recvData)
+        dataStr = ''.join(data)
+
+        if '\n' in dataStr:
+            dataJSON = json.loads(dataStr)
+            break
+    
+    loginDataType = dataJSON['type']
+    
+    try:
+        guessData = dataJSON['guesses']
+        
+        # for each char/number in a guessed word/a guessed word's marks
+        for i in range(5):
+            # if the letter is in the correct position then
+            if guessData[j]['marks'][i] == 2:
+
+                # find words in dict with this letter at this exact position
+                for word in words:
+                    # if a word in the dict doesnt have the right letter at this exact position
+                        # then erase it at all costs. it's useless data
+                    if word[i] != guessData[j]['word'][i]:
+                        try: words.remove(word)
+                        except: words.remove(word + '\n')
+    except:
+        ""
+    j = j + 1
+
+try:
+	print(dataJSON['flag'])
+except:
+    print('Fag not found. Closing socket...')
+    client_sock.close()
+
+#print('closing socket...')
+quit()
